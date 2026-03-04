@@ -1,4 +1,4 @@
-const CACHE_NAME = 'podcatcher-v1';
+const CACHE_NAME = 'podcatcher-v5';
 const ASSETS = [
     './',
     './index.html',
@@ -14,9 +14,27 @@ self.addEventListener('install', (event) => {
             return cache.addAll(ASSETS);
         })
     );
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((keys) => {
+            return Promise.all(
+                keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+            );
+        })
+    );
+    self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
+    // Ne jamais mettre en cache les requêtes API
+    if (event.request.url.includes('rss2json.com') || event.request.url.includes('allorigins')) {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+
     event.respondWith(
         caches.match(event.request).then((response) => {
             return response || fetch(event.request);
