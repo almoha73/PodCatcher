@@ -118,13 +118,16 @@ class Podcatcher {
         }
 
         try {
-            // feed2json.org : performant, pas de limite de 10 items, supporte le CORS
-            const response = await fetch(`https://feed2json.org/convert?url=${encodeURIComponent(podcast.url)}`);
+            // "Double proxy" pour contourner les restrictions de sécurité du navigateur (CORS) 
+            // quand le fichier est ouvert localement (file:// origin null)
+            const feed2JsonUrl = `https://feed2json.org/convert?url=${encodeURIComponent(podcast.url)}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(feed2JsonUrl)}`;
+
+            const response = await fetch(proxyUrl);
             if (!response.ok) throw new Error('Erreur réseau');
             const data = await response.json();
 
             if (data.items && data.items.length > 0) {
-                // Conversion du format JSON Feed vers notre format interne
                 this.allEpisodes = data.items.map(item => ({
                     title: item.title,
                     pubDate: item.date_published || "",
