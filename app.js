@@ -59,6 +59,8 @@ class Podcatcher {
         this.playerImg = document.getElementById('player-img');
         this.playerTitle = document.getElementById('player-title');
         this.playerAuthor = document.getElementById('player-author');
+        this.sidebar = document.getElementById('sidebar');
+        this.menuToggle = document.getElementById('menu-toggle');
 
         this.currentPodcast = null;
         this.currentEpisode = null;
@@ -107,9 +109,14 @@ class Podcatcher {
         this.episodeGrid.innerHTML = '<div class="loader">Chargement des épisodes...</div>';
         document.getElementById('current-podcast-title').innerText = podcast.title;
 
+        // Auto-close sidebar on mobile after selection
+        if (window.innerWidth <= 768) {
+            this.sidebar.classList.remove('open');
+        }
+
         try {
             // Using a CORS proxy to fetch and parse RSS
-            const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(podcast.url)}`;
+            const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(podcast.url)}&count=100`;
             const response = await fetch(proxyUrl);
             const data = await response.json();
 
@@ -174,6 +181,10 @@ class Podcatcher {
         this.btnPlay.addEventListener('click', () => this.togglePlay());
         document.getElementById('btn-prev').addEventListener('click', () => { this.audio.currentTime -= 10; });
         document.getElementById('btn-next').addEventListener('click', () => { this.audio.currentTime += 30; });
+
+        this.menuToggle.addEventListener('click', () => {
+            this.sidebar.classList.toggle('open');
+        });
 
         this.audio.addEventListener('timeupdate', () => {
             const percent = (this.audio.currentTime / this.audio.duration) * 100;
