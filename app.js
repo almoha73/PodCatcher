@@ -118,27 +118,53 @@ class Podcatcher {
         }
 
         try {
-            // "Double proxy" pour contourner les restrictions de sécurité du navigateur (CORS) 
-            // quand le fichier est ouvert localement (file:// origin null)
-            const feed2JsonUrl = `https://feed2json.org/convert?url=${encodeURIComponent(podcast.url)}`;
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(feed2JsonUrl)}`;
-
-            const response = await fetch(proxyUrl);
+            const response = await fetch(`http://localhost:8765/proxy?url=${encodeURIComponent(podcast.url)}`);
             if (!response.ok) throw new Error('Erreur réseau');
-            const data = await response.json();
 
-            if (data.items && data.items.length > 0) {
-                this.allEpisodes = data.items.map(item => ({
-                    title: item.title,
-                    pubDate: item.date_published || "",
-                    description: item.summary || item.content_text || "",
-                    enclosure: {
-                        link: item.attachments && item.attachments[0] ? item.attachments[0].url : ""
-                    },
-                    thumbnail: item.image || item.banner_image || ""
-                }));
-                this.visibleCount = 10;
-                this.renderEpisodes();
+            const text = await response.text();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "text/xml");
+
+            const items = Array.from(xmlDoc.querySelectorAll("item"));
+
+            if (items && items.length > 0) {
+                this.allEpisodes = items.map(item => {
+                    const title = item.querySelector("title")?.textContent || "Sans titre";
+                    const pubDate = item.querySelector("pubDate")?.textContent || "";
+
+                    // Récupérer la description (soit <description>, soit content:encoded)
+                    let description = item.querySelector("description")?.textContent || "";
+                    const contentEncoded = item.getElementsByTagNameNS("*", "encoded");
+                    if (contentEncoded.length > 0) {
+                        description = contentEncoded[0].textContent;
+                    }
+
+                    // Récupérer le lien audio
+                    const enclosure = item.querySelector("enclosure");
+                    const link = enclosure ? enclosure.getAttribute("url") : "";
+
+                    // Essayer de récupérer l'image d'épisode s'il y en a une (<itunes:image>)
+                    const itunesImage = item.getElementsByTagNameNS("*", "image");
+                    let thumbnail = podcast.image_url;
+                    if (itunesImage.length > 0) {
+                        thumbnail = itunesImage[0].getAttribute("href") || podcast.image_url;
+                    }
+
+                    return {
+                        title,
+                        pubDate,
+                        description,
+                        enclosure: { link },
+                        thumbnail
+                    };
+                }).filter(ep => ep.enclosure.link);
+
+                if (this.allEpisodes.length > 0) {
+                    this.visibleCount = 10;
+                    this.renderEpisodes();
+                } else {
+                    throw new Error('Aucun fichier audio trouvé');
+                }
             } else {
                 throw new Error('Aucun épisode trouvé');
             }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'podcatcher-v5';
+const CACHE_NAME = 'podcatcher-v6';
 const ASSETS = [
     './',
     './index.html',
@@ -29,8 +29,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Ne jamais mettre en cache les requêtes API
-    if (event.request.url.includes('rss2json.com') || event.request.url.includes('allorigins')) {
+    if (event.request.url.includes('rss2json.com') || event.request.url.includes('allorigins') || event.request.url.includes('/proxy')) {
         event.respondWith(fetch(event.request));
         return;
     }
