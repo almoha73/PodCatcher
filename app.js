@@ -118,20 +118,47 @@ class Podcatcher {
         }
 
         try {
-            // Using a CORS proxy to fetch and parse RSS
-            const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(podcast.url)}&count=100`;
-            const response = await fetch(proxyUrl);
+            // Utilisation d'un proxy plus fiable (AllOrigins) pour éviter les limitations
+            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(podcast.url)}`);
+            if (!response.ok) throw new Error('Erreur réseau');
             const data = await response.json();
+            const xmlText = data.contents;
 
-            if (data.status === 'ok') {
-                this.allEpisodes = data.items;
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+            const items = Array.from(xmlDoc.querySelectorAll("item")).map(item => {
+                const getTagText = (tag) => item.querySelector(tag)?.textContent || "";
+                const enclosure = item.querySelector("enclosure");
+
+                // Recherche de l'image (balise standard ou itunes)
+                let thumbnail = "";
+                const itunesImage = item.getElementsByTagName("itunes:image")[0];
+                if (itunesImage) thumbnail = itunesImage.getAttribute("href");
+                if (!thumbnail) {
+                    const mediaContent = item.getElementsByTagName("media:content")[0];
+                    if (mediaContent) thumbnail = mediaContent.getAttribute("url");
+                }
+
+                return {
+                    title: getTagText("title"),
+                    pubDate: getTagText("pubDate"),
+                    description: getTagText("description"),
+                    enclosure: {
+                        link: enclosure ? enclosure.getAttribute("url") : ""
+                    },
+                    thumbnail: thumbnail
+                };
+            });
+
+            if (items.length > 0) {
+                this.allEpisodes = items;
                 this.visibleCount = 10;
                 this.renderEpisodes();
             } else {
-                throw new Error('Erreur de flux');
+                throw new Error('Aucun épisode trouvé');
             }
         } catch (error) {
-            console.error(error);
+            console.error("Fetch error:", error);
             this.episodeGrid.innerHTML = '<div class="error">Impossible de charger ce podcast. Problème de flux ou de connexion.</div>';
         }
     }
