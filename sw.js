@@ -1,4 +1,4 @@
-const CACHE_NAME = 'podcatcher-v7';
+const CACHE_NAME = 'podcatcher-v8';
 const ASSETS = [
     './',
     './index.html',

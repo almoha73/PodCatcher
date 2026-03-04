@@ -458,13 +458,23 @@ body {
     }
 
     .current-track {
-        width: auto;
-        flex: 1;
+        width: 50%;
+        min-width: auto;
     }
 
     .volume-control,
-    .track-author {
+    .track-author,
+    .time,
+    .p-bar-container {
         display: none;
+    }
+
+    .player-controls {
+        flex: unset;
+    }
+
+    .control-buttons {
+        gap: 12px;
     }
 
     .main-content {
