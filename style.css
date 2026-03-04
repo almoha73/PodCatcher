@@ -169,6 +169,31 @@ body {
     padding: 40px;
     background: rgba(13, 17, 23, 0.3);
     position: relative;
+    padding-top: 80px;
+}
+
+.content-header {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 320px;
+    /* Sidebar width */
+    height: 70px;
+    padding: 0 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(13, 17, 23, 0.8);
+    backdrop-filter: blur(10px);
+    z-index: 5;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+@media (max-width: 768px) {
+    .content-header {
+        left: 0;
+        padding: 0 20px;
+    }
 }
 
 .episode-grid {
@@ -410,8 +435,15 @@ body {
     background: rgba(255, 255, 255, 0.2);
 }
 
-/* Mobile adjustments */
+.mobile-only {
+    display: none;
+}
+
 @media (max-width: 768px) {
+    .mobile-only {
+        display: flex;
+    }
+
     .sidebar {
         position: fixed;
         left: -100%;
@@ -422,6 +454,7 @@ body {
 
     .sidebar.open {
         left: 0;
+        box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
     }
 
     .current-track {
@@ -435,6 +468,6 @@ body {
     }
 
     .main-content {
-        padding: 20px;
+        padding: 80px 20px 20px 20px;
     }
 }
