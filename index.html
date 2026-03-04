@@ -33,19 +33,20 @@
         <main class="main-content">
             <header class="content-header">
                 <h2 id="current-podcast-title">Mes Podcasts</h2>
-                <button class="btn mobile-only" id="menu-toggle" style="display: none;">
+                <button class="btn mobile-only" id="menu-toggle">
                     <i data-lucide="menu"></i>
                 </button>
             </header>
             <div class="episode-grid" id="episode-grid">
                 <div class="loader">Sélectionnez un podcast pour voir les épisodes...</div>
             </div>
+            <div id="load-more-container" class="load-more-container"></div>
         </main>
     </div>
 
     <footer class="player-bar">
         <div class="current-track">
-            <img src="https://via.placeholder.com/60" alt="Cover" class="track-img" id="player-img">
+            <img src="assets/icon.png" alt="Cover" class="track-img" id="player-img">
             <div class="track-details">
                 <div class="track-name" id="player-title">Aucun podcast</div>
                 <div class="track-author" id="player-author">Prêt à écouter</div>

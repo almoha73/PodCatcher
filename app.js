@@ -61,9 +61,12 @@ class Podcatcher {
         this.playerAuthor = document.getElementById('player-author');
         this.sidebar = document.getElementById('sidebar');
         this.menuToggle = document.getElementById('menu-toggle');
+        this.loadMoreContainer = document.getElementById('load-more-container');
 
         this.currentPodcast = null;
         this.currentEpisode = null;
+        this.allEpisodes = [];
+        this.visibleCount = 10;
         this.isPlaying = false;
 
         this.init();
@@ -121,7 +124,9 @@ class Podcatcher {
             const data = await response.json();
 
             if (data.status === 'ok') {
-                this.renderEpisodes(data.items);
+                this.allEpisodes = data.items;
+                this.visibleCount = 10;
+                this.renderEpisodes();
             } else {
                 throw new Error('Erreur de flux');
             }
@@ -131,8 +136,10 @@ class Podcatcher {
         }
     }
 
-    renderEpisodes(items) {
-        this.episodeGrid.innerHTML = items.map((ep, index) => `
+    renderEpisodes() {
+        const itemsToDisplay = this.allEpisodes.slice(0, this.visibleCount);
+
+        this.episodeGrid.innerHTML = itemsToDisplay.map((ep, index) => `
             <div class="episode-card" onclick="app.playEpisode(${JSON.stringify(ep).replace(/"/g, '&quot;')})">
                 <div class="episode-header">
                     <span class="episode-date">${new Date(ep.pubDate).toLocaleDateString('fr-FR')}</span>
@@ -142,7 +149,26 @@ class Podcatcher {
                 <div class="episode-summary">${ep.description.replace(/<[^>]*>?/gm, '').substring(0, 150)}...</div>
             </div>
         `).join('');
+
+        this.renderLoadMoreButton();
         lucide.createIcons();
+    }
+
+    renderLoadMoreButton() {
+        if (this.visibleCount < this.allEpisodes.length) {
+            this.loadMoreContainer.innerHTML = `
+                <button class="btn-load-more" onclick="app.loadMore()">
+                    Afficher plus d'épisodes (${this.allEpisodes.length - this.visibleCount} restants)
+                </button>
+            `;
+        } else {
+            this.loadMoreContainer.innerHTML = '';
+        }
+    }
+
+    loadMore() {
+        this.visibleCount += 10;
+        this.renderEpisodes();
     }
 
     playEpisode(episode) {
