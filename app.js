@@ -118,19 +118,9 @@ class Podcatcher {
         }
 
         try {
-            // rss2json : rapide, fiable, supporte le CORS
-            const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(podcast.url)}&count=50`;
-            const response = await fetch(proxyUrl);
-            if (!response.ok) throw new Error('Erreur réseau');
-            const data = await response.json();
-
-            if (data.status === 'ok' && data.items.length > 0) {
-                this.allEpisodes = data.items;
-                this.visibleCount = 10;
-                this.renderEpisodes();
-            } else {
-                throw new Error('Aucun épisode trouvé dans ce flux');
-            }
+            // rss2json : plan gratuit = max 10 épisodes par page
+            this.currentPage = 1;
+            await this.fetchAndAppendEpisodes(podcast.url, true);
         } catch (error) {
             console.error("Fetch error:", error);
             this.episodeGrid.innerHTML = '<div class="error">Impossible de charger ce podcast. Problème de flux ou de connexion.</div>';
@@ -138,10 +128,31 @@ class Podcatcher {
 
     }
 
-    renderEpisodes() {
-        const itemsToDisplay = this.allEpisodes.slice(0, this.visibleCount);
+    async fetchAndAppendEpisodes(url, reset = false) {
+        if (reset) {
+            this.allEpisodes = [];
+            this.currentPage = 1;
+            this.hasMore = true;
+        }
+        const PAGE_SIZE = 10;
+        const offset = (this.currentPage - 1) * PAGE_SIZE;
+        const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}&count=${PAGE_SIZE}&offset=${offset}`;
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error('Erreur réseau ' + response.status);
+        const data = await response.json();
+        if (data.status !== 'ok') throw new Error('Flux invalide : ' + data.message);
 
-        this.episodeGrid.innerHTML = itemsToDisplay.map((ep, index) => `
+        const newItems = data.items || [];
+        this.allEpisodes = [...this.allEpisodes, ...newItems];
+        // S'il y a moins d'items que demandé, c'est la dernière page
+        this.hasMore = newItems.length === PAGE_SIZE;
+
+        this.renderEpisodes();
+    }
+
+    renderEpisodes() {
+        // Afficher tous les épisodes chargés jusqu'ici
+        this.episodeGrid.innerHTML = this.allEpisodes.map((ep) => `
             <div class="episode-card" onclick="app.playEpisode(${JSON.stringify(ep).replace(/"/g, '&quot;')})">
                 <div class="episode-header">
                     <span class="episode-date">${new Date(ep.pubDate).toLocaleDateString('fr-FR')}</span>
@@ -157,10 +168,10 @@ class Podcatcher {
     }
 
     renderLoadMoreButton() {
-        if (this.visibleCount < this.allEpisodes.length) {
+        if (this.hasMore) {
             this.loadMoreContainer.innerHTML = `
                 <button class="btn-load-more" onclick="app.loadMore()">
-                    Afficher plus d'épisodes (${this.allEpisodes.length - this.visibleCount} restants)
+                    Afficher 10 épisodes de plus
                 </button>
             `;
         } else {
@@ -168,9 +179,16 @@ class Podcatcher {
         }
     }
 
-    loadMore() {
-        this.visibleCount += 10;
-        this.renderEpisodes();
+    async loadMore() {
+        this.currentPage++;
+        // Affichage d'un indicateur de chargement dans le bouton
+        this.loadMoreContainer.innerHTML = '<div class="loader" style="padding:20px">Chargement...</div>';
+        try {
+            await this.fetchAndAppendEpisodes(this.currentPodcast.url);
+        } catch (e) {
+            console.error(e);
+            this.loadMoreContainer.innerHTML = '<p style="color:red;text-align:center">Erreur de chargement.</p>';
+        }
     }
 
     playEpisode(episode) {
