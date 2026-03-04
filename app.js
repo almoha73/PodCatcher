@@ -118,11 +118,10 @@ class Podcatcher {
         }
 
         try {
-            // Utilisation d'un proxy plus fiable (AllOrigins) pour éviter les limitations
-            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(podcast.url)}`);
+            // Utilisation d'un proxy plus fiable (AllOrigins) avec l'endpoint /raw
+            const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(podcast.url)}`);
             if (!response.ok) throw new Error('Erreur réseau');
-            const data = await response.json();
-            const xmlText = data.contents;
+            const xmlText = await response.text();
 
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(xmlText, "text/xml");
