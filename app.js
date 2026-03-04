@@ -118,7 +118,7 @@ class Podcatcher {
         }
 
         try {
-            const response = await fetch(`http://localhost:8765/proxy?url=${encodeURIComponent(podcast.url)}`);
+            const response = await fetch(`https://cors.eu.org/${podcast.url}`);
             if (!response.ok) throw new Error('Erreur réseau');
 
             const text = await response.text();
