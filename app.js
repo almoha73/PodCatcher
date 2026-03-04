@@ -244,7 +244,7 @@ class Podcatcher {
     setupEventListeners() {
         this.btnPlay.addEventListener('click', () => this.togglePlay());
         document.getElementById('btn-prev').addEventListener('click', () => { this.audio.currentTime -= 10; });
-        document.getElementById('btn-next').addEventListener('click', () => { this.audio.currentTime += 30; });
+        document.getElementById('btn-next').addEventListener('click', () => { this.audio.currentTime += 10; });
 
         this.menuToggle.addEventListener('click', () => {
             this.sidebar.classList.toggle('open');
@@ -286,7 +286,7 @@ class Podcatcher {
             navigator.mediaSession.setActionHandler('play', () => this.togglePlay());
             navigator.mediaSession.setActionHandler('pause', () => this.togglePlay());
             navigator.mediaSession.setActionHandler('seekbackward', () => { this.audio.currentTime -= 10; });
-            navigator.mediaSession.setActionHandler('seekforward', () => { this.audio.currentTime += 30; });
+            navigator.mediaSession.setActionHandler('seekforward', () => { this.audio.currentTime += 10; });
         }
     }
 
