@@ -118,41 +118,37 @@ class Podcatcher {
         }
 
         try {
-            // rss2json : plan gratuit = max 10 épisodes par page
-            this.currentPage = 1;
-            await this.fetchAndAppendEpisodes(podcast.url, true);
+            // feed2json.org : performant, pas de limite de 10 items, supporte le CORS
+            const response = await fetch(`https://feed2json.org/convert?url=${encodeURIComponent(podcast.url)}`);
+            if (!response.ok) throw new Error('Erreur réseau');
+            const data = await response.json();
+
+            if (data.items && data.items.length > 0) {
+                // Conversion du format JSON Feed vers notre format interne
+                this.allEpisodes = data.items.map(item => ({
+                    title: item.title,
+                    pubDate: item.date_published || "",
+                    description: item.summary || item.content_text || "",
+                    enclosure: {
+                        link: item.attachments && item.attachments[0] ? item.attachments[0].url : ""
+                    },
+                    thumbnail: item.image || item.banner_image || ""
+                }));
+                this.visibleCount = 10;
+                this.renderEpisodes();
+            } else {
+                throw new Error('Aucun épisode trouvé');
+            }
         } catch (error) {
             console.error("Fetch error:", error);
             this.episodeGrid.innerHTML = '<div class="error">Impossible de charger ce podcast. Problème de flux ou de connexion.</div>';
         }
-
-    }
-
-    async fetchAndAppendEpisodes(url, reset = false) {
-        if (reset) {
-            this.allEpisodes = [];
-            this.currentPage = 1;
-            this.hasMore = true;
-        }
-        const PAGE_SIZE = 10;
-        const offset = (this.currentPage - 1) * PAGE_SIZE;
-        const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}&count=${PAGE_SIZE}&offset=${offset}`;
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error('Erreur réseau ' + response.status);
-        const data = await response.json();
-        if (data.status !== 'ok') throw new Error('Flux invalide : ' + data.message);
-
-        const newItems = data.items || [];
-        this.allEpisodes = [...this.allEpisodes, ...newItems];
-        // S'il y a moins d'items que demandé, c'est la dernière page
-        this.hasMore = newItems.length === PAGE_SIZE;
-
-        this.renderEpisodes();
     }
 
     renderEpisodes() {
-        // Afficher tous les épisodes chargés jusqu'ici
-        this.episodeGrid.innerHTML = this.allEpisodes.map((ep) => `
+        const itemsToDisplay = this.allEpisodes.slice(0, this.visibleCount);
+
+        this.episodeGrid.innerHTML = itemsToDisplay.map((ep) => `
             <div class="episode-card" onclick="app.playEpisode(${JSON.stringify(ep).replace(/"/g, '&quot;')})">
                 <div class="episode-header">
                     <span class="episode-date">${new Date(ep.pubDate).toLocaleDateString('fr-FR')}</span>
@@ -168,10 +164,10 @@ class Podcatcher {
     }
 
     renderLoadMoreButton() {
-        if (this.hasMore) {
+        if (this.visibleCount < this.allEpisodes.length) {
             this.loadMoreContainer.innerHTML = `
                 <button class="btn-load-more" onclick="app.loadMore()">
-                    Afficher 10 épisodes de plus
+                    Afficher 10 épisodes de plus (${this.allEpisodes.length - this.visibleCount} restants)
                 </button>
             `;
         } else {
@@ -179,16 +175,9 @@ class Podcatcher {
         }
     }
 
-    async loadMore() {
-        this.currentPage++;
-        // Affichage d'un indicateur de chargement dans le bouton
-        this.loadMoreContainer.innerHTML = '<div class="loader" style="padding:20px">Chargement...</div>';
-        try {
-            await this.fetchAndAppendEpisodes(this.currentPodcast.url);
-        } catch (e) {
-            console.error(e);
-            this.loadMoreContainer.innerHTML = '<p style="color:red;text-align:center">Erreur de chargement.</p>';
-        }
+    loadMore() {
+        this.visibleCount += 10;
+        this.renderEpisodes();
     }
 
     playEpisode(episode) {
