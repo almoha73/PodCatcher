@@ -42,7 +42,12 @@ const PODCASTS_CONFIG = [
     {
         "title": "GÉOPOLITIQUE PROFONDE",
         "url": "https://media.rss.com/geopolitique-profonde/feed.xml",
-        "image_url": "https://media.rss.com/geopolitique-profonde/20260109_040154_2c2fe35f46c102cb8f326d8eb61d3b9246.png"
+        "image_url": "https://media.rss.com/geopolitique-profonde/20260109_040154_2c2fe35f46c102cb8f326d8eb61d3b7c.png"
+    },
+    {
+        "title": "100% Frontières",
+        "url": "https://feeds.acast.com/public/shows/699730a4e1d8773119135068",
+        "image_url": "https://assets.pippa.io/shows/699730a4e1d8773119135068/1771859410011-d6c7b2e9-a0df-4265-b175-5451c1462e91.jpeg"
     }
 ];
 
