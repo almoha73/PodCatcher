@@ -1,0 +1,65 @@
+#!/bin/bash
+set -u
+HOST=127.0.0.1
+DIR="$(cd "$(dirname "$0")" && pwd)"
+PROFILE="$HOME/.local/share/podcatcher/chrome-profile"
+PORTS="8791 8792 8793 8794 8795"
+
+is_podcatcher() {
+    curl -fsS --max-time 1 "$1" 2>/dev/null | grep -qi "<title>Podcatcher"
+}
+
+PORT=""
+URL=""
+SERVER_PID=""
+for candidate in $PORTS; do
+    probe="http://$HOST:$candidate/"
+    if is_podcatcher "$probe"; then
+        PORT="$candidate"
+        URL="$probe"
+        break
+    fi
+    if curl -fsS --max-time 0.5 "$probe" >/dev/null 2>&1; then
+        continue
+    fi
+    cd "$DIR" || exit 1
+    nohup python3 "$DIR/serveur.py" --port "$candidate" --dir "$DIR" >/dev/null 2>&1 &
+    pid=$!
+    for _ in $(seq 1 30); do
+        sleep 0.1
+        if ! kill -0 "$pid" 2>/dev/null; then
+            break
+        fi
+        if is_podcatcher "$probe"; then
+            SERVER_PID="$pid"
+            PORT="$candidate"
+            URL="$probe"
+            break
+        fi
+    done
+    if [ -n "$PORT" ]; then
+        break
+    fi
+    kill "$pid" 2>/dev/null
+done
+
+if [ -z "$URL" ]; then
+    echo "Impossible de démarrer le serveur Podcatcher." >&2
+    exit 1
+fi
+
+cleanup() {
+    if [ -n "$SERVER_PID" ]; then
+        kill "$SERVER_PID" 2>/dev/null
+    fi
+}
+trap cleanup EXIT
+
+mkdir -p "$PROFILE"
+google-chrome \
+    --user-data-dir="$PROFILE" \
+    --no-first-run \
+    --no-default-browser-check \
+    --app="$URL" \
+    --class=Podcatcher \
+    --window-size=1280,860

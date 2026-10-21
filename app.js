@@ -73,6 +73,7 @@ class Podcatcher {
         this.allEpisodes = [];
         this.visibleCount = 10;
         this.isPlaying = false;
+        this.nativeDuration = 0;
 
         this.init();
     }
@@ -83,10 +84,13 @@ class Podcatcher {
         this.setupEventListeners();
         this.setupMediaSession();
         this.registerServiceWorker();
+        if (window.innerWidth <= 768) {
+            this.sidebar.classList.add('open');
+        }
     }
 
     registerServiceWorker() {
-        if ('serviceWorker' in navigator) {
+        if ('serviceWorker' in navigator && !window.AndroidBridge) {
             navigator.serviceWorker.register('./sw.js')
                 .then(reg => console.log('SW Registered', reg))
                 .catch(err => console.log('SW Error', err));
@@ -123,10 +127,7 @@ class Podcatcher {
         }
 
         try {
-            const response = await fetch(`/proxy?url=${encodeURIComponent(podcast.url)}`);
-            if (!response.ok) throw new Error('Erreur réseau');
-
-            const text = await response.text();
+            const text = await this.fetchFeedXml(podcast.url);
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(text, "text/xml");
 
@@ -214,8 +215,38 @@ class Podcatcher {
         this.renderEpisodes();
     }
 
+    async fetchFeedXml(url) {
+        const candidates = [
+            `/proxy?url=${encodeURIComponent(url)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+            `https://corsproxy.io/?url=${encodeURIComponent(url)}`
+        ];
+        for (const candidate of candidates) {
+            try {
+                const response = await fetch(candidate);
+                if (response.ok) {
+                    const text = await response.text();
+                    if (text && text.includes('<item')) {
+                        return text;
+                    }
+                }
+            } catch (_) {
+                // Essayer le proxy suivant
+            }
+        }
+        throw new Error('Erreur réseau');
+    }
+
     playEpisode(episode) {
         this.currentEpisode = episode;
+        if (window.AndroidBridge) {
+            const author = this.currentPodcast ? this.currentPodcast.title : 'Podcatcher';
+            const artwork = episode.thumbnail || (this.currentPodcast ? this.currentPodcast.image_url : '');
+            window.AndroidBridge.play(episode.enclosure.link, episode.title, author, artwork);
+            this.isPlaying = true;
+            this.updatePlayerUI();
+            return;
+        }
         this.audio.src = episode.enclosure.link;
         this.audio.play();
         this.isPlaying = true;
@@ -224,6 +255,11 @@ class Podcatcher {
     }
 
     togglePlay() {
+        if (window.AndroidBridge) {
+            if (!this.currentEpisode) return;
+            window.AndroidBridge.togglePlay();
+            return;
+        }
         if (!this.audio.src) return;
         if (this.isPlaying) {
             this.audio.pause();
@@ -231,6 +267,18 @@ class Podcatcher {
             this.audio.play();
         }
         this.isPlaying = !this.isPlaying;
+        this.updatePlayerUI();
+    }
+
+    onNativeAudioUpdate(isPlaying, currentSec, durationSec, ended) {
+        this.isPlaying = ended ? false : isPlaying;
+        this.nativeDuration = durationSec || 0;
+        if (durationSec > 0) {
+            const percent = Math.min(100, (currentSec / durationSec) * 100);
+            this.progressFill.style.width = `${percent}%`;
+            this.timeTotal.innerText = this.formatTime(durationSec);
+        }
+        this.timeCurrent.innerText = this.formatTime(currentSec || 0);
         this.updatePlayerUI();
     }
 
@@ -248,8 +296,20 @@ class Podcatcher {
 
     setupEventListeners() {
         this.btnPlay.addEventListener('click', () => this.togglePlay());
-        document.getElementById('btn-prev').addEventListener('click', () => { this.audio.currentTime -= 10; });
-        document.getElementById('btn-next').addEventListener('click', () => { this.audio.currentTime += 10; });
+        document.getElementById('btn-prev').addEventListener('click', () => {
+            if (window.AndroidBridge) {
+                window.AndroidBridge.seekBy(-10);
+            } else {
+                this.audio.currentTime -= 10;
+            }
+        });
+        document.getElementById('btn-next').addEventListener('click', () => {
+            if (window.AndroidBridge) {
+                window.AndroidBridge.seekBy(10);
+            } else {
+                this.audio.currentTime += 10;
+            }
+        });
 
         this.menuToggle.addEventListener('click', () => {
             this.sidebar.classList.toggle('open');
@@ -267,7 +327,13 @@ class Podcatcher {
         this.progressContainer.addEventListener('click', (e) => {
             const rect = this.progressContainer.getBoundingClientRect();
             const pos = (e.clientX - rect.left) / rect.width;
-            this.audio.currentTime = pos * this.audio.duration;
+            if (window.AndroidBridge) {
+                if (this.nativeDuration > 0) {
+                    window.AndroidBridge.seekTo(pos * this.nativeDuration);
+                }
+            } else {
+                this.audio.currentTime = pos * this.audio.duration;
+            }
         });
 
         this.audio.addEventListener('ended', () => {
@@ -309,3 +375,4 @@ class Podcatcher {
 }
 
 const app = new Podcatcher();
+window.app = app;
